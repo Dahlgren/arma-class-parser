@@ -136,7 +136,7 @@ if (!Array.prototype.last) {
                 return (char >= '0' && char <= '9') ||
                     (char >= 'A' && char <= 'Z') ||
                     (char >= 'a' && char <= 'z') ||
-                    char === '_';
+                    char === '_' || char === '.' || char === '\\';
             },
             parsePropertyName = function () {
                 var result = current();
