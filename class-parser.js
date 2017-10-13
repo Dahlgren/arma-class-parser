@@ -57,7 +57,11 @@ if (!Array.prototype.last) {
             current = function () {
                 return raw[currentPosition];
             },
-            result = {},
+            result = {
+                classes: {},
+                properties: {},
+                type: 'class'
+            },
             weHaveADoubleQuote = function () {
                 return (raw.substr(currentPosition, 2).indexOf('""') === 0);
             },
@@ -88,7 +92,10 @@ if (!Array.prototype.last) {
                 }
                 assert(current() === chars.QUOTE);
                 nextWithoutCommentDetection();
-                return result;
+                return {
+                    type: 'string',
+                    value: result
+                }
             },
             parseNumber = function (str) {
                 str = str.trim();
@@ -116,9 +123,14 @@ if (!Array.prototype.last) {
                 currentPosition = posOfExpressionEnd;
 
                 // DONT LOOK, IT HURTS
-                return expression.split('+').map(parseNumber).reduce(function (prev, cur) {
+                var result = expression.split('+').map(parseNumber).reduce(function (prev, cur) {
                     return prev + cur;
                 }, 0);
+
+                return {
+                    type: 'number',
+                    value: result
+                }
             },
             parsePropertyValue = function () {
                 var
@@ -148,7 +160,11 @@ if (!Array.prototype.last) {
                 return result;
             },
             parseClassValue = function () {
-                var result = {};
+                var result = {
+                    classes: {},
+                    properties: {},
+                    type: 'class'
+                };
 
                 assert(current() === chars.CURLY_OPEN);
                 next();
@@ -181,11 +197,15 @@ if (!Array.prototype.last) {
 
                 }
                 next();
-                return result;
+                return {
+                    type: 'array',
+                    value: result
+                }
             },
             parseProperty = function (context) {
                 var
                     name = parsePropertyName(),
+                    inherited,
                     value;
 
                 parseWhitespace();
@@ -196,7 +216,7 @@ if (!Array.prototype.last) {
                     if (current() === ':') {
                         next();
                         parseWhitespace();
-                        parsePropertyName();
+                        inherited = parsePropertyName();
                         parseWhitespace();
                     }
                 }
@@ -210,14 +230,18 @@ if (!Array.prototype.last) {
                         next();
                         parseWhitespace();
                         value = parseArray();
+                        context.properties[name] = value;
                         break;
                     case chars.EQUALS:
                         next();
                         parseWhitespace();
                         value = parsePropertyValue();
+                        context.properties[name] = value;
                         break;
                     case chars.CURLY_OPEN:
                         value = parseClassValue();
+                        value.inherited = inherited;
+                        context.classes[name] = value;
                         break;
                     case chars.SLASH:
                         if (next() === chars.SLASH) {
@@ -229,7 +253,6 @@ if (!Array.prototype.last) {
                         throw new Error('unexpected value at pos ' + currentPosition);
                 }
 
-                context[name] = value;
                 parseWhitespace();
                 assert(current() === chars.SEMICOLON);
                 next();
